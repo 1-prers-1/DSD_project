@@ -56,5 +56,20 @@ run_one "t6_rand_gaps"    golden_model/vectors/t6_input.hex golden_model/vectors
 run_one "t7_rand_both"    golden_model/vectors/t7_input.hex golden_model/vectors/t7_expected.hex 8 "+GAPS=1 +STALLS=1 +SEED=13"
 
 echo ""
+# ---- 64x64 test (Person C) ----
+python3 golden_model/gen_test_image.py --size 64 --pattern random --seed 5 --name big64
+iverilog -g2012 -Ptb_top.WIDTH=64 -Ptb_top.HEIGHT=64 -o sim_out/sim64.out \
+    rtl/line_buffer.sv rtl/frame_controller.sv rtl/mac_pipeline.sv rtl/accelerator_top.sv \
+    tb/stream_source.sv tb/stream_sink.sv tb/tb_top.sv
+for opts in "" "+GAPS=1 +STALLS=1 +SEED=3"; do
+    vvp sim_out/sim64.out +INPUT=golden_model/vectors/big64_input.hex \
+        +OUTPUT=sim_out/big64_rtl.hex +SIZE=64 $opts
+    if python3 golden_model/compare.py --expected golden_model/vectors/big64_expected.hex \
+        --actual sim_out/big64_rtl.hex --size 64; then
+        PASS=$((PASS+1))
+    else
+        FAIL=$((FAIL+1))
+    fi
+done
 echo "=== SUMMARY: $PASS passed, $FAIL failed ==="
 if [ $FAIL -ne 0 ]; then exit 1; fi
